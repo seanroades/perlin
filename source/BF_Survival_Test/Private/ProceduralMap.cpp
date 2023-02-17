@@ -1,57 +1,91 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
 #include "ProceduralMap.h"
+#include "ProceduralMeshComponent.h"
 #include "Math/UnrealMathUtility.h"
 
 AProceduralMap::AProceduralMap()
 {
-    PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = false;
 
-    ProceduralMeshComponent = CreateDefaultSubobject<UProceduralMeshComponent>("ProceduralMeshComponent");
-    ProceduralMeshComponent->SetupAttachment(GetRootComponent());
+	ProceduralMesh = CreateDefaultSubobject<UProceduralMeshComponent>("ProceduralMesh");
+	ProceduralMesh->SetupAttachment(GetRootComponent());
+
 }
 
-void AProceduralMap::GenerateMesh(unsigned int XLength, unsigned int YLength)
+void AProceduralMap::BeginPlay()
 {
-    // Clear previous mesh in case we are regenerating
-    ProceduralMeshComponent->ClearAllMeshSections();
+	Super::BeginPlay();
 
-    // Generate noise map for each layer
+	CreateVertices();
+	CreateTriangles();
+
+	ProceduralMesh->CreateMeshSection(0, Vertices, Triangles, TArray<FVector>(), UV0, TArray<FColor>(), TArray<FProcMeshTangent>(), true);
+	ProceduralMesh->SetMaterial(0, Material);
+
 }
 
-//
-double AProceduralMap::CombinePerlinLayers(const TArray<FPerlinLayer>& NoiseLayers, double X, double Y)
+void AProceduralMap::Tick(float DeltaTime)
 {
-    // Make sure we have at least one layer
-    if (NoiseLayers.Num() == 0)
-    {
-		return 0.0;
+	Super::Tick(DeltaTime);
+
+}
+
+void AProceduralMap::CreateVertices()
+{
+	for (int X = 0; X <= XSize; ++X)
+	{
+		for (int Y = 0; Y <= YSize; ++Y)
+		{
+			 float Z = GeneratePerlinNoise(X, Y);
+			//float Z = FMath::PerlinNoise2D(FVector2D(X * Frequency + 0.1, Y * Frequency + 0.1)) * ZMultiplier;
+			UE_LOG(LogTemp, Warning, TEXT("Z: %f"), Z)
+			Vertices.Add(FVector(X * Scale, Y * Scale, Z));
+			UV0.Add(FVector2D(X * UVScale, Y * UVScale));
+		}
+	}
+}
+
+float AProceduralMap::GeneratePerlinNoise(int X, int Y)
+{
+	int octaveCount = 1;
+	float lacunarity = 100.0;
+	float persistence = 0.5;
+	float amplitude = 1000.0;
+
+	for (int i = 0; i < octaveCount; i++)
+	{
+		float noiseValue = 0.0;
+
+		// Change frequency and amplitude for each octave according to lacunarity and persistence
+		//float frequency = pow(lacunarity, i);
+		//float amplitude = pow(persistence, i);*/
+
+		noiseValue += FMath::PerlinNoise2D(FVector2D(X * Frequency + 0.1, Y * Frequency + 0.1)) * amplitude;
+		UE_LOG(LogTemp, Warning, TEXT("Noise Value: %f"), noiseValue)
+		return noiseValue;
 	}
 
-    // Get noise value for a combined x, y coordinate
-    double noiseValue = 0.0;
+	return 0.0f;
+}
 
-    for (int i = 0; i < NoiseLayers.Num(); i++)
-    {
-		const FPerlinLayer& Layer = NoiseLayers[i];
+void AProceduralMap::CreateTriangles()
+{
+	int Vertex = 0;
 
-        // Add noise value for each layer, can also be subtracted, multiplied, etc depending on application
-		noiseValue += (double) FMath::PerlinNoise2D(FVector2D(X * Layer.frequency, Y * Layer.frequency)) * Layer.amplitude;
-        return noiseValue;
+	for (int X = 0; X < XSize; ++X)
+	{
+		for (int Y = 0; Y < YSize; ++Y)
+		{
+			Triangles.Add(Vertex);//Bottom left corner
+			Triangles.Add(Vertex + 1);//Bottom right corner
+			Triangles.Add(Vertex + YSize + 1);//Top left corner
+			Triangles.Add(Vertex + 1);//Bottom right corner
+			Triangles.Add(Vertex + YSize + 2);//Top right corner
+			Triangles.Add(Vertex + YSize + 1);//Top left corner
+
+			++Vertex;
+		}
+		++Vertex;
 	}
 }
-
-double AProceduralMap::GeneratePerlinNoise(FPerlinLayer Layer, double X, double Y) 
-{
-    for (int i = 0; i < Layer.octaveCount; i++)
-    {
-        double noiseValue = 0.0;
-
-        // Change frequency and amplitude for each octave according ot lacunarity and persistence
-        double frequency = pow(Layer.lacunarity, i);
-		double amplitude = pow(Layer.persistence, i);
-
-		noiseValue += (double) FMath::PerlinNoise2D(FVector2D(X * frequency, Y * frequency)) * amplitude;
-
-        return noiseValue;
-    }
-}
-

@@ -6,57 +6,46 @@
 #include "ProceduralMap.generated.h"
 
 class UProceduralMeshComponent;
-
-USTRUCT(BlueprintType)
-struct FPerlinLayer
-{
-    GENERATED_BODY()
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-        int octaveCount;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-        double frequency;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-        double persistence;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-        double amplitude;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-        double lacunarity;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-        int seed;
-};
+class UMaterialInterface;
 
 UCLASS()
 class BF_SURVIVAL_TEST_API AProceduralMap : public AActor
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    AProceduralMap();
+	AProceduralMap();
 
-    UFUNCTION(BlueprintCallable)
-        void GenerateMesh(unsigned int XLength, unsigned int YLength);
+	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0))
+		int XSize = 0;
+	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0))
+		int YSize = 0;
+	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0))
+		float ZMultiplier = 1.0f;
+	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0))
+		float Frequency = 1.0f;
 
-    UFUNCTION(BlueprintCallable)
-        void AddPerlinLayer(const FPerlinLayer& Layer);
-    
-    UFUNCTION(BlueprintCallable)
-        void GeneratePerlinNoise(FPerlinLayer Layer, double X, double Y);
+	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.000001))
+		float Scale = 100.0f;
+	UPROPERTY(EditAnywhere, Meta = (ClampMin = 0.000001))
+		float UVScale = 0.0f;
 
 protected:
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-        TArray<FPerlinLayer> PerlinNoiseLayers;
+	virtual void BeginPlay() override;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-        unsigned int XLength;
+	UPROPERTY(EditAnywhere)
+		UMaterialInterface* Material;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-        unsigned int YLength;
+public:
+	virtual void Tick(float DeltaTime) override;
 
-    UProceduralMeshComponent* ProceduralMeshComponent;
+private:
+	UProceduralMeshComponent* ProceduralMesh;
+	TArray<FVector> Vertices;
+	TArray<int> Triangles;
+	TArray<FVector2D> UV0;
+
+	void CreateVertices();
+	void CreateTriangles();
+	float GeneratePerlinNoise(int X, int Y);
 };
